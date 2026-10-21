@@ -126,9 +126,29 @@ function simulate(W,m,u){ // u = user settings or null
 function rowsHtml(res,cap){let last=null;return res.rows.map(x=>{let h="";if(x.r&&x.r!==last){h=`<div class="rd">Ronde ${x.r}</div>`;last=x.r}
  return h+`<div class="row"><span class="l">${esc(x.lab)}${x.det?`<span class="d">${esc(x.det)}</span>`:""}</span><span class="s">${mm(x.s)}</span><span class="c ${x.c>cap?"cap":""}">${x.c>cap?"cap":mm(x.c)}</span></div>`}).join("")}
 const fmtT=(t,cap)=>t>cap?`<span class="cap">cap</span>`:mm(t);
+const LIFTS={"Elite / RX · Mannen": {"est": [150.0, 145.0, 142.5, 137.5], "cj": [155, 150, 150, 145], "sn": [133.5, 131, 127.5, 120]}, "Elite / RX · Vrouwen": {"est": [102.5, 92.5, 92.5, 87.5], "cj": [110, 95, 95, 90], "sn": [90, 86, 85, 77.5]}, "Intermediate · Mannen": {"est": [127.5, 122.5, 117.5, 110.0], "cj": [145, 135, 130, 120], "sn": [105, 102.5, 100, 95]}, "Intermediate · Vrouwen": {"est": [87.5, 80.0, 75.0, 72.5], "cj": [90, 85, 80, 75], "sn": [77.5, 70, 67.5, 63.5]}, "Masters 35-39 · Mannen": {"est": [140.0, 132.5, 122.5, 107.5], "cj": [145, 135, 130, 120], "sn": [127.5, 120, 110, 90]}, "Masters 35-39 · Vrouwen": {"est": [87.5, 77.5, 75.0, 62.5], "cj": [90, 80, 80, 70], "sn": [81, 70, 65, 50]}, "Teens · Mannen": {"est": [122.5, 107.5, 102.5, 87.5], "cj": [125, 110, 105, null], "sn": [110, 97.5, 95, 75]}, "Teens · Vrouwen": {"est": [82.5, 77.5, 75.0, null], "cj": [90, 85, 80, null], "sn": [null, null, null, null]}, "Team Intermediate M/M": {"est": [247.5, 230.0, 227.5, 210.0], "tsn": [215, 200, 197.5, 182.5]}, "Team RX M/M": {"est": [285.0, 265.0, 262.5, 237.5], "tsn": [247, 230, 227, 205]}, "Team RX M/F": {"est": [262.5, 255.0, 250.0, 202.5], "tsn": [193.5, 188.5, 185, 150]}};
+const kg=x=>x==null?"—":(Math.round(x*2)/2).toString().replace(".",",")+" kg";
+const r25=x=>Math.round(x/2.5)*2.5;
+function liftYou(name,cjv){const L=LIFTS[name];if(!cjv)return`<p class="hint">Vul je beste clean & jerk in, dan zie je je verwachte complex en waar je ongeveer uitkomt.</p>`;
+ const lo=r25(cjv*0.90),hi=r25(cjv*0.95);const pos=L.est.filter(x=>x!=null&&x>hi).length;
+ const plek=pos===0?"rond de winnaar":pos===1?"tussen 1e en 3e":pos===2?"rond de 3e–5e plaats":pos===3?"tussen 5e en 10e":"rond of na de 10e plaats";
+ return`<div class="row"><span class="l">Jouw complex (90–95% van je C&J)</span><span class="c">${kg(lo).replace(" kg","")}–${kg(hi)}</span></div>
+ <div class="row"><span class="l">Poging 1 (veilig)</span><span class="c">${kg(r25(lo))}</span></div>
+ <div class="row"><span class="l">Poging 2</span><span class="c">${kg(r25(hi))}</span></div>
+ <div class="row"><span class="l">Poging 3 (PR-poging)</span><span class="c">${kg(r25(hi+2.5))}+</span></div>
+ <p class="hint">Daarmee kom je naar verwachting ${plek} uit.</p>`}
+function liftCard(name,n,head,team,t){const L=LIFTS[name];const u=store.get(`rk|${name}|2`)||{};
+ const src=team?`Bron: som van de team-snatch op LLTD 2025, omgerekend naar de complex${name.includes("M/F")?" (vrouwenscore ×1,4 meegenomen; ruwe schatting)":""}.`:`Bron: clean & jerk LLTD 2024 (${L.cj.map(kg).join(" / ")}) en snatch LLTD 2025 (${L.sn.map(kg).join(" / ")}), omgerekend naar de complex (~92% van de C&J).`;
+ return`<article class="card">${head}<div class="two">
+ <section class="blk top"><div class="bh"><span class="k">Verwacht ${team?"(samen)":""}</span></div><div class="rows">
+ ${["Winnaar","3e plaats","5e plaats","10e plaats"].map((p,i)=>`<div class="row"><span class="l">${p}</span><span class="s"></span><span class="c">${kg(L.est[i])}</span></div>`).join("")}</div>
+ <p class="hint">${src} Het veld is klein, dus één sterke atleet verschuift de top al.</p></section>
+ <section class="blk you"><div class="bh"><span class="k">Jij</span></div><div class="ed" style="border:0;padding:0">
+ <label class="fld"><input id="cj-${n}" data-cj="1" inputmode="numeric" placeholder="bv 80" value="${u.cj||""}"><small>${team?"jullie beste clean & jerk opgeteld (kg)":"je beste clean & jerk (kg)"}</small></label>
+ <div class="rows" id="cjout">${liftYou(name,u.cj)}</div></div></section></div></article>`}
 function card(name,n){const D=PLAN[name],W=D.wods[n],team=D.kind==="team",t=(team?TXT.team:TXT.ind)[n];let plan=t.plan;if(!team&&n==="1"&&D.d==="INT")plan=t.int;
  const head=`<div><div class="num">${team?"T":""}26.${n}</div><h2 class="wt">${esc(t.t)}</h2><div class="fmt">${esc(t.f)}</div></div><ul>${plan.map(p=>`<li>${esc(p)}</li>`).join("")}</ul>`;
- if(!W)return`<article class="card">${head}</article>`;
+ if(!W)return liftCard(name,n,head,team,t);
  const lvl=lvlFor(name,n);const m=lvl==="win"?D.fw:D.f5;const sk=`rk|${name}|${n}`;const u=store.get(sk)||{k:{}};
  const top=simulate(W,m,null),me=simulate(W,m,u);const d=me.total-top.total;
  const ks=Object.entries(W.keys);
@@ -151,7 +171,7 @@ function rerenderYou(n){const name=sel.value,D=PLAN[name],W=D.wods[n],m=lvlFor(n
  const top=simulate(W,m,null),me=simulate(W,m,u),d=me.total-top.total,box=document.getElementById("you-"+n);
  box.querySelector(".bh").innerHTML=`<span class="k">Jij <span class="vs">t.o.v. ${lvlFor(name,n)==="win"?"podium":"top 5"}</span></span><span><span class="big">${fmtT(me.total,W.cap)}</span> <span class="diff">${me.total>W.cap?"":(d>=0?"+":"")+mm(d)}</span></span>`;
  box.querySelector(".rows").innerHTML=rowsHtml(me,W.cap)}
-document.getElementById("cards").addEventListener("input",e=>{const el=e.target;if(el.tagName!=="INPUT")return;if(el.dataset.time){let d=el.value.replace(/\D/g,"");while(d.length>4&&d[0]==="0")d=d.slice(1);d=d.slice(0,4);el.value=d.length>2?d.slice(0,-2).padStart(2,"0")+":"+d.slice(-2):d;}const n=el.dataset.n,name=sel.value,W=PLAN[name].wods[n],sk=`rk|${name}|${n}`;const u=store.get(sk)||{k:{}};
+document.getElementById("cards").addEventListener("input",e=>{const el=e.target;if(el.tagName!=="INPUT")return;if(el.dataset.cj){const v=pt(el.value);store.set(`rk|${sel.value}|2`,{cj:v||null});document.getElementById("cjout").innerHTML=liftYou(sel.value,v);return}if(el.dataset.time){let d=el.value.replace(/\D/g,"");while(d.length>4&&d[0]==="0")d=d.slice(1);d=d.slice(0,4);el.value=d.length>2?d.slice(0,-2).padStart(2,"0")+":"+d.slice(-2):d;}const n=el.dataset.n,name=sel.value,W=PLAN[name].wods[n],sk=`rk|${name}|${n}`;const u=store.get(sk)||{k:{}};
  const f=el.dataset.f;if(f==="tr"||f==="fat"){const x=pt(el.value);if(x===null)delete u[f];else u[f]=x}
  else{const k=el.dataset.k;u.k[k]=u.k[k]||{};if(f==="pace"){const x=fromDisp(W.keys[k],el.value,qOf(W,k));if(x===null)delete u.k[k].pace;else u.k[k].pace=x}
   else if(f==="sets"){if(el.value.trim())u.k[k].sets=el.value.trim();else delete u.k[k].sets;const sm=el.parentElement.querySelector("small");const parts=(el.value||"").split(/[-+\/ ,x]+/).map(Number).filter(x=>x>0);const tot=parts.reduce((a,b)=>a+b,0),q=qOf(W,k);sm.textContent=parts.length>1&&tot!==q?`let op: ${parts.join("-")} telt op tot ${tot}, de workout vraagt ${q}`:"in sets? bv 6-4 (leeg = in één keer)";sm.classList.toggle("warnt",parts.length>1&&tot!==q)}
