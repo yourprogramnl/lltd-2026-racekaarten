@@ -65,6 +65,10 @@ input::placeholder{color:var(--mut);opacity:.8}
 .you .bh{position:sticky;top:calc(env(safe-area-inset-top,0px) + var(--ctl,96px));z-index:4;background:var(--you2);margin:-4px -12px 0;padding:6px 12px;border-radius:0}
 .top .bh{position:sticky;top:calc(env(safe-area-inset-top,0px) + var(--ctl,96px));z-index:4;background:var(--acc2);margin:-4px -12px 0;padding:6px 12px}
 .ctl{box-shadow:0 6px 10px -8px rgba(0,0,0,.25)}
+.lv{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:var(--card)}
+.lv button{font:600 .78rem var(--fb);padding:4px 10px;border:0;background:transparent;color:var(--fg);cursor:pointer}
+.lv button[aria-pressed="true"]{background:var(--acc);color:var(--card)}
+.vs{font-weight:400;text-transform:none;letter-spacing:0;color:var(--mut)}
 </style>
 </head>
 <body>
@@ -72,7 +76,7 @@ input::placeholder{color:var(--mut);opacity:.8}
   <header><h1>LLTD 2026 racekaarten</h1><p class="intro">Links zie je wat de top per WOD gaat neerzetten. Rechts vul je je eigen plan in: je tempo, je sets, je rust en je wissels. De pagina rekent dan je eigen tijd en doorkomsttijden uit. Wat je invult blijft op dit apparaat bewaard.</p></header>
   <div class="ctl">
     <select id="div" aria-label="Divisie"></select>
-    <div class="seg" role="group" aria-label="Doel"><button id="b-win" aria-pressed="true">Doel: podium</button><button id="b-top5" aria-pressed="false">Doel: top 5</button></div>
+    
   </div>
   <div id="cards" class="wrap" style="max-width:none"></div>
   <p class="foot">Toptijden zijn een voorspelling uit bewegingssnelheden en de uitslagen van LLTD 2024–2025 (±10–15%). Tijden staan als minuten:seconden (1:44 = 1 minuut 44 seconden). Bij zwem- en looptempo typ je alleen cijfers; de dubbele punt komt er vanzelf (430 wordt 04:30). Al het andere zijn hele seconden. In het toptempo zit al wat rust; vul je zelf sets en rust in, gebruik dan je snelle tempo zonder pauzes. Leeg veld = je rekent met het toptempo. </p>
@@ -101,7 +105,8 @@ const pt=v=>{v=String(v).trim().replace(",",".");if(!v)return null;if(v.includes
 const TR=5,EX=8;
 const sel=document.getElementById("div");sel.innerHTML=Object.keys(PLAN).map(k=>`<option>${esc(k)}</option>`).join("");
 let lvl="win";const store={get(k){try{return JSON.parse(localStorage.getItem(k)||"null")}catch(e){return null}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
-{const s=store.get("rk-div");if(s&&PLAN[s])sel.value=s;const l=store.get("rk-lvl");if(l)lvl=l}
+{const s=store.get("rk-div");if(s&&PLAN[s])sel.value=s}
+const lvlFor=(name,n)=>store.get(`rk-lvl|${name}|${n}`)||"win";
 // pace display/input conversion per unit
 const mdot=s=>{s=Math.round(s);return String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0")};function pms(v){v=String(v).trim();if(!v)return null;const m=v.match(/^(\d+)\s*[.,: ]\s*(\d{1,2})$/);if(m)return(+m[1])*60+(+m[2]);const n=+v.replace(",",".");if(!isFinite(n)||n<=0)return null;return n>=100?Math.floor(n/100)*60+n%100:n*60}
 function toDisp(k,p){if(k.show==="100m")return mdot(p*100);if(k.show==="km")return mdot(p*1000);if(k.show==="calmin")return String(Math.round(3600/p/10)*10);if(k.u==="rep")return String(Math.round(p*10));return String(Math.round(p))}
@@ -123,7 +128,7 @@ const fmtT=(t,cap)=>t>cap?`<span class="cap">cap</span>`:mm(t);
 function card(name,n){const D=PLAN[name],W=D.wods[n],team=D.kind==="team",t=(team?TXT.team:TXT.ind)[n];let plan=t.plan;if(!team&&n==="1"&&D.d==="INT")plan=t.int;
  const head=`<div><div class="num">${team?"T":""}26.${n}</div><h2 class="wt">${esc(t.t)}</h2><div class="fmt">${esc(t.f)}</div></div><ul>${plan.map(p=>`<li>${esc(p)}</li>`).join("")}</ul>`;
  if(!W)return`<article class="card">${head}</article>`;
- const m=lvl==="win"?D.fw:D.f5;const sk=`rk|${name}|${n}`;const u=store.get(sk)||{k:{}};
+ const lvl=lvlFor(name,n);const m=lvl==="win"?D.fw:D.f5;const sk=`rk|${name}|${n}`;const u=store.get(sk)||{k:{}};
  const top=simulate(W,m,null),me=simulate(W,m,u);const d=me.total-top.total;
  const ks=Object.entries(W.keys);
  const capt=K=>K.show==="100m"?"per 100 m (mm:ss)":K.show==="km"?"per km (mm:ss)":K.show==="calmin"?"cal/uur op de monitor":K.u==="rep"?"10 reps in … sec":K.u==="klim"?"1 klim in … sec":K.u==="sec"?"5 m in … sec":"1 object in … sec";
@@ -136,14 +141,13 @@ function card(name,n){const D=PLAN[name],W=D.wods[n],team=D.kind==="team",t=(tea
    ${W.R>1?`<label class="fld"><input id="fat-${n}" data-n="${n}" data-f="fat" inputmode="numeric" placeholder="0" value="${u.fat||""}"><small>elke ronde zoveel sec trager</small></label>`:""}</div></div>
   <button class="reset" data-n="${n}">Wis mijn invoer</button></div>`;
  return`<article class="card">${head}<div class="two">
-  <section class="blk top"><div class="bh"><span class="k">${lvl==="win"?"Podium":"Top 5"}</span><span class="big">${fmtT(top.total,W.cap)}</span></div><div class="rows">${rowsHtml(top,W.cap)}</div></section>
-  <section class="blk you" id="you-${n}"><div class="bh"><span class="k">Jij</span><span><span class="big">${fmtT(me.total,W.cap)}</span> <span class="diff">${me.total>W.cap?"":(d>=0?"+":"")+mm(d)}</span></span></div>${ed}<div class="rows">${rowsHtml(me,W.cap)}</div></section>
+  <section class="blk top"><div class="bh"><span class="lv" role="group" aria-label="Doel"><button data-n="${n}" data-l="win" aria-pressed="${lvl==="win"}">Podium</button><button data-n="${n}" data-l="top5" aria-pressed="${lvl==="top5"}">Top 5</button></span><span class="big">${fmtT(top.total,W.cap)}</span></div><div class="rows">${rowsHtml(top,W.cap)}</div></section>
+  <section class="blk you" id="you-${n}"><div class="bh"><span class="k">Jij <span class="vs">t.o.v. ${lvlFor(name,n)==="win"?"podium":"top 5"}</span></span><span><span class="big">${fmtT(me.total,W.cap)}</span> <span class="diff">${me.total>W.cap?"":(d>=0?"+":"")+mm(d)}</span></span></div>${ed}<div class="rows">${rowsHtml(me,W.cap)}</div></section>
  </div>${t.fail?`<div class="fail"><b>Als het misgaat:</b> ${esc(t.fail)}</div>`:""}</article>`}
-function render(){document.getElementById("b-win").setAttribute("aria-pressed",lvl==="win");document.getElementById("b-top5").setAttribute("aria-pressed",lvl==="top5");
- document.getElementById("cards").innerHTML=["1","2","3","4","5","6","7"].map(n=>card(sel.value,n)).join("")}
-function rerenderYou(n){const name=sel.value,D=PLAN[name],W=D.wods[n],m=lvl==="win"?D.fw:D.f5,u=store.get(`rk|${name}|${n}`)||{k:{}};
+function render(){ document.getElementById("cards").innerHTML=["1","2","3","4","5","6","7"].map(n=>card(sel.value,n)).join("")}
+function rerenderYou(n){const name=sel.value,D=PLAN[name],W=D.wods[n],m=lvlFor(name,n)==="win"?D.fw:D.f5,u=store.get(`rk|${name}|${n}`)||{k:{}};
  const top=simulate(W,m,null),me=simulate(W,m,u),d=me.total-top.total,box=document.getElementById("you-"+n);
- box.querySelector(".bh").innerHTML=`<span class="k">Jij</span><span><span class="big">${fmtT(me.total,W.cap)}</span> <span class="diff">${me.total>W.cap?"":(d>=0?"+":"")+mm(d)}</span></span>`;
+ box.querySelector(".bh").innerHTML=`<span class="k">Jij <span class="vs">t.o.v. ${lvlFor(name,n)==="win"?"podium":"top 5"}</span></span><span><span class="big">${fmtT(me.total,W.cap)}</span> <span class="diff">${me.total>W.cap?"":(d>=0?"+":"")+mm(d)}</span></span>`;
  box.querySelector(".rows").innerHTML=rowsHtml(me,W.cap)}
 document.getElementById("cards").addEventListener("input",e=>{const el=e.target;if(el.tagName!=="INPUT")return;if(el.dataset.time){let d=el.value.replace(/\D/g,"");while(d.length>4&&d[0]==="0")d=d.slice(1);d=d.slice(0,4);el.value=d.length>2?d.slice(0,-2).padStart(2,"0")+":"+d.slice(-2):d;}const n=el.dataset.n,name=sel.value,W=PLAN[name].wods[n],sk=`rk|${name}|${n}`;const u=store.get(sk)||{k:{}};
  const f=el.dataset.f;if(f==="tr"||f==="fat"){const x=pt(el.value);if(x===null)delete u[f];else u[f]=x}
@@ -153,8 +157,7 @@ document.getElementById("cards").addEventListener("input",e=>{const el=e.target;
  store.set(sk,u);rerenderYou(n)});
 document.getElementById("cards").addEventListener("click",e=>{const b=e.target.closest(".reset");if(!b)return;try{localStorage.removeItem(`rk|${sel.value}|${b.dataset.n}`)}catch(x){}render()});
 sel.addEventListener("change",()=>{store.set("rk-div",sel.value);render()});
-document.getElementById("b-win").onclick=()=>{lvl="win";store.set("rk-lvl",lvl);render()};
-document.getElementById("b-top5").onclick=()=>{lvl="top5";store.set("rk-lvl",lvl);render()};
+document.getElementById("cards").addEventListener("click",e=>{const b=e.target.closest(".lv button");if(!b)return;store.set(`rk-lvl|${sel.value}|${b.dataset.n}`,b.dataset.l);render()});
 const setCtl=()=>document.documentElement.style.setProperty("--ctl",document.querySelector(".ctl").offsetHeight+"px");setCtl();addEventListener("resize",setCtl);
 render();
 </script>
