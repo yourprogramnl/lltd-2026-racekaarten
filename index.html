@@ -154,7 +154,7 @@ function rerenderYou(n){const name=sel.value,D=PLAN[name],W=D.wods[n],m=lvlFor(n
 document.getElementById("cards").addEventListener("input",e=>{const el=e.target;if(el.tagName!=="INPUT")return;if(el.dataset.time){let d=el.value.replace(/\D/g,"");while(d.length>4&&d[0]==="0")d=d.slice(1);d=d.slice(0,4);el.value=d.length>2?d.slice(0,-2).padStart(2,"0")+":"+d.slice(-2):d;}const n=el.dataset.n,name=sel.value,W=PLAN[name].wods[n],sk=`rk|${name}|${n}`;const u=store.get(sk)||{k:{}};
  const f=el.dataset.f;if(f==="tr"||f==="fat"){const x=pt(el.value);if(x===null)delete u[f];else u[f]=x}
  else{const k=el.dataset.k;u.k[k]=u.k[k]||{};if(f==="pace"){const x=fromDisp(W.keys[k],el.value,qOf(W,k));if(x===null)delete u.k[k].pace;else u.k[k].pace=x}
-  else if(f==="sets"){if(el.value.trim())u.k[k].sets=el.value.trim();else delete u.k[k].sets}
+  else if(f==="sets"){if(el.value.trim())u.k[k].sets=el.value.trim();else delete u.k[k].sets;const sm=el.parentElement.querySelector("small");const parts=(el.value||"").split(/[-+\/ ,x]+/).map(Number).filter(x=>x>0);const tot=parts.reduce((a,b)=>a+b,0),q=qOf(W,k);sm.textContent=parts.length>1&&tot!==q?`let op: ${parts.join("-")} telt op tot ${tot}, de workout vraagt ${q}`:"in sets? bv 6-4 (leeg = in één keer)";sm.classList.toggle("warnt",parts.length>1&&tot!==q)}
   else if(f==="rest"){const x=pt(el.value);if(x===null)delete u.k[k].rest;else u.k[k].rest=x}}
  store.set(sk,u);rerenderYou(n)});
 document.getElementById("cards").addEventListener("click",e=>{const b=e.target.closest(".reset");if(!b)return;try{localStorage.removeItem(`rk|${sel.value}|${b.dataset.n}`)}catch(x){}render()});
