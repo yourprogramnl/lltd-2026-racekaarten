@@ -109,8 +109,9 @@ let lvl="win";const store={get(k){try{return JSON.parse(localStorage.getItem(k)|
 const lvlFor=(name,n)=>store.get(`rk-lvl|${name}|${n}`)||"win";
 // pace display/input conversion per unit
 const mdot=s=>{s=Math.round(s);return String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0")};function pms(v){v=String(v).trim();if(!v)return null;const m=v.match(/^(\d+)\s*[.,: ]\s*(\d{1,2})$/);if(m)return(+m[1])*60+(+m[2]);const n=+v.replace(",",".");if(!isFinite(n)||n<=0)return null;return n>=100?Math.floor(n/100)*60+n%100:n*60}
-function toDisp(k,p){if(k.show==="100m")return mdot(p*100);if(k.show==="km")return mdot(p*1000);if(k.show==="calmin")return String(Math.round(3600/p/10)*10);if(k.u==="rep")return String(Math.round(p*10));return String(Math.round(p))}
-function fromDisp(k,v){if(k.show==="100m"||k.show==="km"){const s=pms(v);if(s===null)return null;return k.show==="100m"?s/100:s/1000}const x=pt(v);if(x===null||x<=0)return null;if(k.show==="calmin")return 3600/x;if(k.u==="rep")return x/10;return x}
+const qOf=(W,id)=>(W.steps.find(s=>s.k===id)||{q:1}).q;
+function toDisp(k,p,q=1){if(k.show==="100m")return mdot(p*100);if(k.show==="km")return mdot(p*1000);if(k.show==="calmin")return String(Math.round(3600/p/10)*10);return String(Math.round(p*q))}
+function fromDisp(k,v,q=1){if(k.show==="100m"||k.show==="km"){const s=pms(v);if(s===null)return null;return k.show==="100m"?s/100:s/1000}const x=pt(v);if(x===null||x<=0)return null;if(k.show==="calmin")return 3600/x;return x/q}
 const unitLbl=k=>({"100m":"per 100 m (mm:ss)","km":"per km (mm:ss)","calmin":"cal/uur (monitor)"}[k.show]||({"rep":"sec per 10 reps","klim":"sec per klim","sec":"sec per stuk","x":"sec"}[k.u]||"sec"));
 function detail(k,p){if(k.show==="100m")return `${mm(p*25)} per 25 m`;if(k.show==="km")return `${mm(p*125)} per rondje 125 m`;if(k.show==="calmin")return `${Math.round(60/p*60/10)*10} cal/uur op de monitor`;return ""}
 function simulate(W,m,u){ // u = user settings or null
@@ -131,13 +132,14 @@ function card(name,n){const D=PLAN[name],W=D.wods[n],team=D.kind==="team",t=(tea
  const lvl=lvlFor(name,n);const m=lvl==="win"?D.fw:D.f5;const sk=`rk|${name}|${n}`;const u=store.get(sk)||{k:{}};
  const top=simulate(W,m,null),me=simulate(W,m,u);const d=me.total-top.total;
  const ks=Object.entries(W.keys);
- const capt=K=>K.show==="100m"?"per 100 m (mm:ss)":K.show==="km"?"per km (mm:ss)":K.show==="calmin"?"cal/uur op de monitor":K.u==="rep"?"10 reps in … sec":K.u==="klim"?"1 klim in … sec":K.u==="sec"?"5 m in … sec":"1 object in … sec";
+ const capt=K=>K.show==="100m"?"je tempo per 100 m (mm:ss)":K.show==="km"?"je looptempo per km (mm:ss)":K.show==="calmin"?"cal/uur op de monitor van de roeier":"hoeveel seconden doe je hierover?";
+ const ttl=(K,q)=>(K.show==="100m"||K.show==="km"||K.show==="calmin")?K.lab:`${q}× ${K.lab}`;
  const ed=`<div class="ed"><h3>Pas je plan aan</h3><p class="hint">Vul alleen in wat bij jou anders is. Leeg = het toptempo. Je tijd hierboven rekent direct mee.</p>
-  ${ks.map(([id,K])=>{const uk=u.k[id]||{};const tm=(K.show==="100m"||K.show==="km");return`<div class="mv"><div class="mvn">${esc(K.lab)}</div><div class="flds">
-   <label class="fld"><input id="${id}-${n}-p" data-n="${n}" data-k="${id}" data-f="pace" ${tm?'data-time="1" maxlength="6"':''} inputmode="numeric" placeholder="${toDisp(K,K.p*m)}" value="${uk.pace!=null?esc(toDisp(K,uk.pace)):""}"><small>${capt(K)}</small></label>
-   ${K.sets?`<label class="fld"><input id="${id}-${n}-s" data-n="${n}" data-k="${id}" data-f="sets" placeholder="bv 6-4" value="${esc(uk.sets||"")}"><small>opgedeeld in sets</small></label><label class="fld"><input id="${id}-${n}-r" data-n="${n}" data-k="${id}" data-f="rest" inputmode="numeric" placeholder="5" value="${uk.rest!=null?uk.rest:""}"><small>rust tussen sets (sec)</small></label>`:""}</div></div>`}).join("")}
+  ${ks.map(([id,K])=>{const uk=u.k[id]||{};const q=qOf(W,id);const tm=(K.show==="100m"||K.show==="km");return`<div class="mv"><div class="mvn">${esc(ttl(K,q))}</div><div class="flds">
+   <label class="fld"><input id="${id}-${n}-p" data-n="${n}" data-k="${id}" data-f="pace" ${tm?'data-time="1" maxlength="6"':''} inputmode="numeric" placeholder="${toDisp(K,K.p*m,q)}" value="${uk.pace!=null?esc(toDisp(K,uk.pace,q)):""}"><small>${capt(K)}</small></label>
+   ${K.sets?`<label class="fld"><input id="${id}-${n}-s" data-n="${n}" data-k="${id}" data-f="sets" placeholder="bv 6-4" value="${esc(uk.sets||"")}"><small>in sets? bv 6-4 (leeg = in één keer)</small></label><label class="fld"><input id="${id}-${n}-r" data-n="${n}" data-k="${id}" data-f="rest" inputmode="numeric" placeholder="5" value="${uk.rest!=null?uk.rest:""}"><small>rust per pauze (sec)</small></label>`:""}</div></div>`}).join("")}
   <div class="mv"><div class="mvn">Algemeen</div><div class="flds">
-   <label class="fld"><input id="tr-${n}" data-n="${n}" data-f="tr" inputmode="numeric" placeholder="${(TR*m).toFixed(0)}" value="${u.tr!=null?u.tr:""}"><small>wissel naar volgend onderdeel (sec)</small></label>
+   <label class="fld"><input id="tr-${n}" data-n="${n}" data-f="tr" inputmode="numeric" placeholder="${(TR*m).toFixed(0)}" value="${u.tr!=null?u.tr:""}"><small>wissel naar het volgende onderdeel (sec)</small></label>
    ${W.R>1?`<label class="fld"><input id="fat-${n}" data-n="${n}" data-f="fat" inputmode="numeric" placeholder="0" value="${u.fat||""}"><small>elke ronde zoveel sec trager</small></label>`:""}</div></div>
   <button class="reset" data-n="${n}">Wis mijn invoer</button></div>`;
  return`<article class="card">${head}<div class="two">
@@ -151,7 +153,7 @@ function rerenderYou(n){const name=sel.value,D=PLAN[name],W=D.wods[n],m=lvlFor(n
  box.querySelector(".rows").innerHTML=rowsHtml(me,W.cap)}
 document.getElementById("cards").addEventListener("input",e=>{const el=e.target;if(el.tagName!=="INPUT")return;if(el.dataset.time){let d=el.value.replace(/\D/g,"");while(d.length>4&&d[0]==="0")d=d.slice(1);d=d.slice(0,4);el.value=d.length>2?d.slice(0,-2).padStart(2,"0")+":"+d.slice(-2):d;}const n=el.dataset.n,name=sel.value,W=PLAN[name].wods[n],sk=`rk|${name}|${n}`;const u=store.get(sk)||{k:{}};
  const f=el.dataset.f;if(f==="tr"||f==="fat"){const x=pt(el.value);if(x===null)delete u[f];else u[f]=x}
- else{const k=el.dataset.k;u.k[k]=u.k[k]||{};if(f==="pace"){const x=fromDisp(W.keys[k],el.value);if(x===null)delete u.k[k].pace;else u.k[k].pace=x}
+ else{const k=el.dataset.k;u.k[k]=u.k[k]||{};if(f==="pace"){const x=fromDisp(W.keys[k],el.value,qOf(W,k));if(x===null)delete u.k[k].pace;else u.k[k].pace=x}
   else if(f==="sets"){if(el.value.trim())u.k[k].sets=el.value.trim();else delete u.k[k].sets}
   else if(f==="rest"){const x=pt(el.value);if(x===null)delete u.k[k].rest;else u.k[k].rest=x}}
  store.set(sk,u);rerenderYou(n)});
