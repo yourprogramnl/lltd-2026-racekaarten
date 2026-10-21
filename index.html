@@ -94,9 +94,10 @@ const sel=document.getElementById("div");sel.innerHTML=Object.keys(PLAN).map(k=>
 let lvl="win";const store={get(k){try{return JSON.parse(localStorage.getItem(k)||"null")}catch(e){return null}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 {const s=store.get("rk-div");if(s&&PLAN[s])sel.value=s;const l=store.get("rk-lvl");if(l)lvl=l}
 // pace display/input conversion per unit
-function toDisp(k,p){if(k.show==="100m")return mm(p*100);if(k.show==="km")return mm(p*1000);if(k.show==="calmin")return(60/p).toFixed(1);return p.toFixed(2)}
-function fromDisp(k,v){const x=pt(v);if(x===null||x<=0)return null;if(k.show==="100m")return x/100;if(k.show==="km")return x/1000;if(k.show==="calmin")return 60/x;return x}
-const unitLbl=k=>({"100m":"per 100 m","km":"per km","calmin":"cal/min"}[k.show]||({"rep":"s/rep","klim":"s/klim","sec":"s/stuk","x":"s"}[k.u]||"s"));
+const mdot=s=>mm(s).replace(":",".");function pms(v){v=String(v).trim();if(!v)return null;const m=v.match(/^(\d+)\s*[.,: ]\s*(\d{1,2})$/);if(m)return(+m[1])*60+(+m[2]);const n=+v.replace(",",".");if(!isFinite(n)||n<=0)return null;return n>=100?Math.floor(n/100)*60+n%100:n*60}
+function toDisp(k,p){if(k.show==="100m")return mdot(p*100);if(k.show==="km")return mdot(p*1000);if(k.show==="calmin")return(60/p).toFixed(1);return p.toFixed(2)}
+function fromDisp(k,v){if(k.show==="100m"||k.show==="km"){const s=pms(v);if(s===null)return null;return k.show==="100m"?s/100:s/1000}const x=pt(v);if(x===null||x<=0)return null;if(k.show==="calmin")return 60/x;return x}
+const unitLbl=k=>({"100m":"min.sec per 100 m","km":"min.sec per km","calmin":"cal/min"}[k.show]||({"rep":"s/rep","klim":"s/klim","sec":"s/stuk","x":"s"}[k.u]||"s"));
 function detail(k,p){if(k.show==="100m")return `${mm(p*25)} per 25 m`;if(k.show==="km")return `${mm(p*125)} per rondje 125 m`;if(k.show==="calmin")return `${Math.round(60/p*60/10)*10} cal/uur op de monitor`;return ""}
 function simulate(W,m,u){ // u = user settings or null
  const rows=[];let clock=0;const fat=u&&u.fat?u.fat/100:0;
